@@ -1,0 +1,10 @@
+1212,Ron Herrema,14,17,18,66
+1345,John Curry,8,15,7,45
+2344,Jo Hyde,6,15,10,55
+2345,Sam Sturtivant,14,15,14,77
+2983,Les Ferdinand,15,17,18,92
+3724,Matt Thompson,19,11,15,81
+8327,Alan Shearer,20,20,20,100
+8439,Jake Hobbs,10,11,10,43
+9384,Gareth Southgate,5,6,8,33
+9876,Lee Scott,17,11,16,99
