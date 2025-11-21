@@ -49,15 +49,15 @@ COLORS = {
 
 FONT = 'Comic Sans MS'
 FONT_SIZES = {
-    'title': 24,
-    'stats_label': 17,
-    'stats_value': 15,
-    'button': 18,
-    'header': 12,
-    'cell': 10,
-    'detail_label': 14,
-    'detail_value': 12,
-    'form': 12
+    'title': -24,
+    'stats_label': -17,
+    'stats_value': -15,
+    'button': -18,
+    'header': -12,
+    'cell': -10,
+    'detail_label': -14,
+    'detail_value': -12,
+    'form': -12
 }
 
 POS = {
@@ -73,6 +73,19 @@ POS = {
     'details_w': 350,
     'details_h': 350
 }
+
+# Error Notification Constants
+ERROR_NOTIFICATION = {
+    'bg_color': '#ff4444',
+    'text_color': 'white',
+    'width': 200,
+    'x_offset': 200,  # Distance from right edge
+    'y_offset': 40,   # Distance from top
+    'wraplength': 180,
+    'auto_hide_time': 5000,  # 5 seconds in milliseconds
+    'close_btn_hover': '#cc3333'
+}
+
 TABLE = {
     'headers': ["ID", "Name", "CW1", "CW2", "CW3", "CW Total", "Exam", "Total", "Grade"],
     'col_w': 12,

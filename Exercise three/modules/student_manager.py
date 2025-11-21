@@ -10,10 +10,14 @@ class StudentManager:
         self.root.geometry(f"{WIDTH}x{HEIGHT}")
         self.root.resizable(False, False)
         
-        self.bg = self.load_image(BG_IMAGE, WIDTH, HEIGHT)  # Change to self.load_image
+        self.bg = self.load_image(BG_IMAGE, WIDTH, HEIGHT)
         self.selected_student = None
         self.students = load_students()
         self.setup_ui()
+        
+        # Add error notification system
+        self.error_notification = None
+        self.error_timer = None
 
     def load_image(self, path, width, height):
         """Load and resize image"""
@@ -45,6 +49,69 @@ class StudentManager:
         title = tk.Label(self.canvas, text="Student Manager", bg=COLORS['title'],
                         fg='black', font=(FONT, FONT_SIZES['title'], 'bold'))
         self.canvas.create_window(WIDTH / 2, POS['title_y'], window=title)
+
+    def show_error_notification(self, message):
+        """Show error notification on upper right side"""
+        # Remove existing notification if any
+        if self.error_notification:
+            self.error_notification.destroy()
+            if self.error_timer:
+                self.root.after_cancel(self.error_timer)
+        
+        # Create error notification frame
+        self.error_notification = tk.Frame(
+            self.canvas, 
+            bg=ERROR_NOTIFICATION['bg_color'], 
+            relief='solid', 
+            bd=1
+        )
+        
+        # Position on upper right (with some padding from edges)
+        notification_x = WIDTH - ERROR_NOTIFICATION['x_offset']
+        notification_y = ERROR_NOTIFICATION['y_offset']
+        
+        # Create error message label
+        error_label = tk.Label(
+            self.error_notification, 
+            text=message, 
+            bg=ERROR_NOTIFICATION['bg_color'], 
+            fg=ERROR_NOTIFICATION['text_color'], 
+            font=(FONT, FONT_SIZES['form'], 'bold'),
+            wraplength=ERROR_NOTIFICATION['wraplength'],
+            justify='left'
+        )
+        error_label.pack(padx=10, pady=8)
+        
+        # Create close button
+        close_btn = tk.Label(
+            self.error_notification,
+            text="✕",
+            bg=ERROR_NOTIFICATION['bg_color'],
+            fg=ERROR_NOTIFICATION['text_color'],
+            font=(FONT, 10, 'bold'),
+            cursor='hand2'
+        )
+        close_btn.pack(side='top', anchor='ne', padx=5, pady=2)
+        close_btn.bind('<Button-1>', lambda e: self.hide_error_notification())
+        
+        # Add hover effect to close button
+        close_btn.bind('<Enter>', lambda e: close_btn.config(bg=ERROR_NOTIFICATION['close_btn_hover']))
+        close_btn.bind('<Leave>', lambda e: close_btn.config(bg=ERROR_NOTIFICATION['bg_color']))
+        
+        # Create the window on canvas
+        self.canvas.create_window(notification_x, notification_y, window=self.error_notification)
+        
+        # Auto-hide after specified time
+        self.error_timer = self.root.after(ERROR_NOTIFICATION['auto_hide_time'], self.hide_error_notification)
+
+    def hide_error_notification(self):
+        """Hide the error notification"""
+        if self.error_notification:
+            self.error_notification.destroy()
+            self.error_notification = None
+        if self.error_timer:
+            self.root.after_cancel(self.error_timer)
+            self.error_timer = None
 
     def setup_stats(self):
         """Create stats with real data"""
@@ -310,45 +377,46 @@ class StudentManager:
                     font=(FONT, FONT_SIZES['detail_value']), anchor='w').pack(side='left')
 
     def add(self):
-        """Show add form"""
         self.title.config(text="Add Student")
         
         for w in self.content.winfo_children():
             w.destroy()
         
-        # Scrollable frame
         scroll_frame = tk.Frame(self.content, bg=COLORS['content'])
         scroll_frame.pack(fill='both', expand=True)
         
         canvas = tk.Canvas(scroll_frame, bg=COLORS['content'], highlightthickness=0)
         scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
-        form_frame = tk.Frame(canvas, bg=COLORS['content'])
-        
-        form_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=form_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
         
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Form fields
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        form_frame = tk.Frame(canvas, bg=COLORS['content'])
+        
+        form_frame.bind("<Configure>", 
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"), width=e.width))
+        
+        canvas_window = canvas.create_window((0, 0), window=form_frame, anchor="nw")
+        
+        canvas.bind("<Configure>", 
+            lambda e: canvas.itemconfig(canvas_window, width=e.width))
+
         self.fields = {}
         
-        # Student ID
         tk.Label(form_frame, text="Student ID:", bg=COLORS['content'],
                 fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
         id_entry = tk.Entry(form_frame, font=(FONT, FONT_SIZES['form']), width=30)
         id_entry.pack(fill='x', pady=(0, 10))
         self.fields['id'] = id_entry
         
-        # Name
         tk.Label(form_frame, text="Name:", bg=COLORS['content'],
                 fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
         name_entry = tk.Entry(form_frame, font=(FONT, FONT_SIZES['form']), width=30)
         name_entry.pack(fill='x', pady=(0, 10))
         self.fields['name'] = name_entry
         
-        # Coursework marks
         for i in range(1, 4):
             tk.Label(form_frame, text=f"CW{i} (0-20):", bg=COLORS['content'],
                     fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
@@ -356,33 +424,29 @@ class StudentManager:
             mark_entry.pack(fill='x', pady=(0, 10))
             self.fields[f'mark{i}'] = mark_entry
         
-        # Exam mark
         tk.Label(form_frame, text="Exam (0-100):", bg=COLORS['content'],
                 fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
         exam_entry = tk.Entry(form_frame, font=(FONT, FONT_SIZES['form']), width=30)
         exam_entry.pack(fill='x', pady=(0, 20))
         self.fields['exam'] = exam_entry
         
-        # Buttons
-        btn_frame = tk.Frame(self.content, bg=COLORS['content'])
+        # Buttons are now correctly packed into form_frame (the scrollable content)
+        btn_frame = tk.Frame(form_frame, bg=COLORS['content'])
         btn_frame.pack(fill='x', pady=10)
         
         save_btn = tk.Label(btn_frame, text="Save", bg=COLORS['success'],
                         fg='white', font=(FONT, FONT_SIZES['form'], 'bold'), cursor='hand2')
-        save_btn.pack(side='left', padx=(0, 10))
+        save_btn.pack(side='left', padx=(0, 10), pady=10)
         save_btn.bind('<Button-1>', lambda e: self.save_new())
         save_btn.bind('<Enter>', lambda e: save_btn.config(bg='#219955'))
         save_btn.bind('<Leave>', lambda e: save_btn.config(bg=COLORS['success']))
         
         cancel_btn = tk.Label(btn_frame, text="Cancel", bg=COLORS['danger'],
                         fg='white', font=(FONT, FONT_SIZES['form'], 'bold'), cursor='hand2')
-        cancel_btn.pack(side='left')
+        cancel_btn.pack(side='left', pady=10)
         cancel_btn.bind('<Button-1>', lambda e: self.show_empty())
         cancel_btn.bind('<Enter>', lambda e: cancel_btn.config(bg='#A93226'))
         cancel_btn.bind('<Leave>', lambda e: cancel_btn.config(bg=COLORS['danger']))
-        
-        canvas.update_idletasks()
-        canvas.configure(scrollregion=canvas.bbox("all"))
 
     def save_new(self):
         """Save new student"""
@@ -394,23 +458,23 @@ class StudentManager:
             
             # Validation
             if not name:
-                self.show_msg("Error: Please enter a name", "error")
+                self.show_error_notification("Error: Please enter a name")
                 return
             
             if student_id < 1000 or student_id > 9999:
-                self.show_msg("Error: Student ID must be between 1000-9999", "error")
+                self.show_error_notification("Error: Student ID must be between 1000-9999")
                 return
             
             if any(m < 0 or m > 20 for m in marks):
-                self.show_msg("Error: Coursework marks must be 0-20", "error")
+                self.show_error_notification("Error: Coursework marks must be 0-20")
                 return
             
             if exam < 0 or exam > 100:
-                self.show_msg("Error: Exam mark must be 0-100", "error")
+                self.show_error_notification("Error: Exam mark must be 0-100")
                 return
             
             if any(s.student_id == student_id for s in self.students):
-                self.show_msg("Error: Student ID already exists", "error")
+                self.show_error_notification("Error: Student ID already exists")
                 return
             
             # Create and save
@@ -425,7 +489,7 @@ class StudentManager:
             self.title.config(text=f"✓ Added: {name}")
             
         except ValueError:
-            self.show_msg("Error: Please enter valid numbers", "error")
+            self.show_error_notification("Error: Please enter valid numbers")
 
     def show_popup(self):
         """Show no selection popup"""
@@ -476,38 +540,40 @@ class StudentManager:
             self.show_edit_form(self.selected_student)
 
     def show_edit_form(self, student):
-        """Show edit form"""
         self.title.config(text=f"Edit: {student.name}")
         
         for w in self.content.winfo_children():
             w.destroy()
         
-        # Scrollable frame
         scroll_frame = tk.Frame(self.content, bg=COLORS['content'])
         scroll_frame.pack(fill='both', expand=True)
         
         canvas = tk.Canvas(scroll_frame, bg=COLORS['content'], highlightthickness=0)
         scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
-        form_frame = tk.Frame(canvas, bg=COLORS['content'])
-        
-        form_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        canvas.create_window((0, 0), window=form_frame, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
         
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
-        # Form fields
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        form_frame = tk.Frame(canvas, bg=COLORS['content'])
+        
+        form_frame.bind("<Configure>", 
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"), width=e.width))
+        
+        canvas_window = canvas.create_window((0, 0), window=form_frame, anchor="nw")
+        
+        canvas.bind("<Configure>", 
+            lambda e: canvas.itemconfig(canvas_window, width=e.width))
+
         self.edit_fields = {}
         
-        # Student ID (read-only)
         tk.Label(form_frame, text="Student ID:", bg=COLORS['content'],
                 fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
         id_label = tk.Label(form_frame, text=str(student.student_id), 
                         bg=COLORS['content'], fg='black', font=(FONT, FONT_SIZES['form']))
         id_label.pack(anchor='w', pady=(0, 10))
         
-        # Name
         tk.Label(form_frame, text="Name:", bg=COLORS['content'],
                 fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
         name_entry = tk.Entry(form_frame, font=(FONT, FONT_SIZES['form']), width=30)
@@ -515,7 +581,6 @@ class StudentManager:
         name_entry.pack(fill='x', pady=(0, 10))
         self.edit_fields['name'] = name_entry
         
-        # Coursework marks
         marks = [student.mark1, student.mark2, student.mark3]
         for i in range(1, 4):
             tk.Label(form_frame, text=f"CW{i} (0-20):", bg=COLORS['content'],
@@ -525,7 +590,6 @@ class StudentManager:
             mark_entry.pack(fill='x', pady=(0, 10))
             self.edit_fields[f'mark{i}'] = mark_entry
         
-        # Exam mark
         tk.Label(form_frame, text="Exam (0-100):", bg=COLORS['content'],
                 fg='black', font=(FONT, FONT_SIZES['form'], 'bold')).pack(anchor='w', pady=(5, 0))
         exam_entry = tk.Entry(form_frame, font=(FONT, FONT_SIZES['form']), width=30)
@@ -533,26 +597,22 @@ class StudentManager:
         exam_entry.pack(fill='x', pady=(0, 20))
         self.edit_fields['exam'] = exam_entry
         
-        # Buttons
-        btn_frame = tk.Frame(self.content, bg=COLORS['content'])
+        btn_frame = tk.Frame(form_frame, bg=COLORS['content'])
         btn_frame.pack(fill='x', pady=10)
         
         save_btn = tk.Label(btn_frame, text="Save", bg=COLORS['success'],
                         fg='white', font=(FONT, FONT_SIZES['form'], 'bold'), cursor='hand2')
-        save_btn.pack(side='left', padx=(0, 10))
+        save_btn.pack(side='left', padx=(0, 10), pady=10)
         save_btn.bind('<Button-1>', lambda e: self.save_edit(student))
         save_btn.bind('<Enter>', lambda e: save_btn.config(bg='#219955'))
         save_btn.bind('<Leave>', lambda e: save_btn.config(bg=COLORS['success']))
         
         cancel_btn = tk.Label(btn_frame, text="Cancel", bg=COLORS['danger'],
                             fg='white', font=(FONT, FONT_SIZES['form'], 'bold'), cursor='hand2')
-        cancel_btn.pack(side='left')
+        cancel_btn.pack(side='left', pady=10)
         cancel_btn.bind('<Button-1>', lambda e: self.show_details(student))
         cancel_btn.bind('<Enter>', lambda e: cancel_btn.config(bg='#A93226'))
         cancel_btn.bind('<Leave>', lambda e: cancel_btn.config(bg=COLORS['danger']))
-        
-        canvas.update_idletasks()
-        canvas.configure(scrollregion=canvas.bbox("all"))
 
     def save_edit(self, student):
         """Save edited student"""
@@ -563,23 +623,23 @@ class StudentManager:
             
             # Validation
             if not name:
-                self.show_msg("Error: Please enter a name", "error")
+                self.show_error_notification("Error: Please enter a name")
                 return
             
             if any(m < 0 or m > 20 for m in marks):
-                self.show_msg("Error: Coursework marks must be 0-20", "error")
+                self.show_error_notification("Error: Coursework marks must be 0-20")
                 return
             
             if exam < 0 or exam > 100:
-                self.show_msg("Error: Exam mark must be 0-100", "error")
+                self.show_error_notification("Error: Exam mark must be 0-100")
                 return
             
             # Update student
             student.name = name
             student.mark1, student.mark2, student.mark3 = marks
             student.exam_mark = exam
+            student.calculate_totals()
             
-            # Save to file
             save_students(self.students)
             
             # Update UI
@@ -588,7 +648,7 @@ class StudentManager:
             self.title.config(text=f"✓ Updated: {name}")
             
         except ValueError:
-            self.show_msg("Error: Please enter valid numbers", "error")
+            self.show_error_notification("Error: Please enter valid numbers")
 
     def delete(self):
         """Delete selected student"""
@@ -653,7 +713,7 @@ class StudentManager:
     def highest(self):
         """Show highest scoring student"""
         if not self.students:
-            self.show_msg("No students in database", "error")
+            self.show_error_notification("No students in database")
             return
         
         # Find student with highest percentage
@@ -665,7 +725,7 @@ class StudentManager:
     def lowest(self):
         """Show lowest scoring student"""
         if not self.students:
-            self.show_msg("No students in database", "error")
+            self.show_error_notification("No students in database")
             return
         
         # Find student with lowest percentage
